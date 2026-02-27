@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { User, Role, UserStatus, Post, Meeting, ThemeMode, BIHAR_DISTRICTS } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Role, UserStatus, Post, Meeting, ThemeMode, BIHAR_DISTRICTS, DESIGNATIONS } from './types';
 import { Auth, PendingApprovalScreen } from './components/Auth';
 import { Layout } from './components/Layout';
-import { Feed } from './components/Feed';
+import { Dashboard } from './components/Dashboard';
 import { Directory } from './components/Directory';
-import { MapPin, Calendar, Check, X, Clock, CheckCircle, ArrowLeft, Phone, User as UserIcon, Bell, BadgeCheck, Shield, Edit2, Video, MoreVertical, Trash2, Ban, AlertTriangle, LandPlot, RefreshCw, FileText } from 'lucide-react';
-import { Language, translations, simulateDynamicTranslation } from './services/translations';
+import { MapPin, Calendar, Check, X, Clock, CheckCircle, ArrowLeft, Phone, User as UserIcon, Bell, BadgeCheck, Shield, Edit2, Video, MoreVertical, Trash2, Ban, AlertTriangle, LandPlot, RefreshCw, FileText, Download, Share2, ExternalLink, Globe, Sparkles } from 'lucide-react';
+import { Language, translations } from './services/translations';
 import { STORAGE_LIMIT_GB } from './services/config';
 import { MOCK_USERS, MOCK_POSTS, MOCK_MEETINGS } from './services/mockData';
+import { audioService } from './services/audioService';
+import { enhanceNotice } from './services/geminiService';
+import { toJpeg } from 'html-to-image';
+import { QRCodeSVG } from 'qrcode.react';
 
 export const App: React.FC = () => {
     // Global State
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentTab, setCurrentTab] = useState('home');
     const [currentLang, setCurrentLang] = useState<Language>('en');
+    const [hasStarted, setHasStarted] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
     
     // Theme State
     const [themeMode, setThemeMode] = useState<ThemeMode>('system');
@@ -23,9 +29,11 @@ export const App: React.FC = () => {
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
     const [viewingNotice, setViewingNotice] = useState<Post | null>(null);
     const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
+    const [showCreateNoticeModal, setShowCreateNoticeModal] = useState(false);
     const [showEditProfileModal, setShowEditProfileModal] = useState(false);
     const [showApprovalModal, setShowApprovalModal] = useState(false);
     const [approvalTarget, setApprovalTarget] = useState<User | null>(null);
+    const [meetingFilter, setMeetingFilter] = useState<'All' | 'State Level' | 'District Level'>('All');
     
     // Detailed Profile Admin Menu State
     const [showDetailAdminMenu, setShowDetailAdminMenu] = useState(false);
@@ -38,13 +46,17 @@ export const App: React.FC = () => {
 
     const t = translations[currentLang];
     
+    // Refs for Image Generation
+    const letterheadRef = useRef<HTMLDivElement>(null);
+    const idCardRef = useRef<HTMLDivElement>(null);
+
     // Derived State
     const hasNotices = posts.some(p => p.isNotice && !readNoticeIds.has(p.id));
     const allNotices = posts.filter(p => p.isNotice);
 
     // Forms
     const [newMeeting, setNewMeeting] = useState<{
-        title: string; date: string; time: string; venue: string; meetingType: 'physical' | 'whatsapp'; agenda: string; targetDistrict: string;
+        title: string; date: string; time: string; venue: string; meetingType: 'physical' | 'whatsapp' | 'virtual'; meetingLink?: string; agenda: string; targetDistrict: string;
     }>({
         title: '', date: '', time: '', venue: '', meetingType: 'physical', agenda: '', targetDistrict: 'All Bihar'
     });
@@ -52,6 +64,16 @@ export const App: React.FC = () => {
     const [editProfileData, setEditProfileData] = useState({
         name: '', mobile: '', district: '', designation: '', fatherName: ''
     });
+
+    const [newNoticeContent, setNewNoticeContent] = useState('');
+    const [isEnhancing, setIsEnhancing] = useState(false);
+
+    // --- Audio Tour Logic ---
+    useEffect(() => {
+        if (hasStarted && currentUser) {
+            audioService.play(currentTab, isMuted);
+        }
+    }, [currentTab, hasStarted, currentUser, isMuted]);
 
     // --- Lifecycle Logic: Theme Only (No Firebase Listeners) ---
     useEffect(() => {
@@ -67,12 +89,61 @@ export const App: React.FC = () => {
     }, [themeMode]);
 
     // Handlers
-    const checkStorageAndCleanup = () => {
-        // Placeholder for future storage logic
-        const mockStorageUsage = 4.5; 
-        if (mockStorageUsage > STORAGE_LIMIT_GB) {
-            console.warn("Storage Limit Warning");
+    const handleToggleMute = () => {
+        const newMute = !isMuted;
+        setIsMuted(newMute);
+        audioService.setMute(newMute);
+    };
+
+    const handleEnhanceNotice = async (content: string) => {
+        try {
+            const enhanced = await enhanceNotice(content, currentLang);
+            return enhanced;
+        } catch (error) {
+            console.error("AI Enhancement failed", error);
+            alert("AI Enhancement failed. Please try again.");
+            return content;
         }
+    };
+
+    const handleDownloadLetterhead = async (notice: Post) => {
+        if (!letterheadRef.current) return;
+        try {
+            const dataUrl = await toJpeg(letterheadRef.current, { quality: 0.95 });
+            const link = document.createElement('a');
+            link.download = `LJP_Notice_${notice.id}.jpg`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Letterhead generation failed', err);
+        }
+    };
+
+    const handleDownloadIDCard = async () => {
+        if (!idCardRef.current) return;
+        try {
+            const dataUrl = await toJpeg(idCardRef.current, { quality: 0.95 });
+            const link = document.createElement('a');
+            link.download = `LJP_ID_Card_${currentUser?.name}.jpg`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('ID Card generation failed', err);
+        }
+    };
+
+    const calculateTenure = (joinedDate?: string) => {
+        if (!joinedDate) return t.newMember;
+        const joined = new Date(joinedDate);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - joined.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 30) return `${diffDays} ${t.days}`;
+        const diffMonths = Math.floor(diffDays / 30);
+        if (diffMonths < 12) return `${diffMonths} ${t.months}`;
+        const diffYears = Math.floor(diffMonths / 12);
+        return `${diffYears} ${t.years}`;
     };
 
     const handleLogin = async (mobile: string) => {
@@ -91,7 +162,7 @@ export const App: React.FC = () => {
             setCurrentUser(foundUser);
             
             if (foundUser.role === Role.SUPER_ADMIN) {
-                checkStorageAndCleanup();
+                // checkStorageAndCleanup();
             }
         } else {
             alert('User not found! Please sign up.');
@@ -111,7 +182,8 @@ export const App: React.FC = () => {
             jurisdiction: data.jurisdiction,
             role: Role.MEMBER,
             status: UserStatus.PENDING, 
-            appointmentLetterUrl: data.appointmentLetterUrl
+            appointmentLetterUrl: data.appointmentLetterUrl,
+            joinedDate: Date.now()
         };
         
         setUsers(prev => [...prev, newUser]);
@@ -129,6 +201,11 @@ export const App: React.FC = () => {
 
     const handleAddPost = async (content: string, imageUrl?: string, isNotice: boolean = false, expiryHours: number = 72) => {
         if (!currentUser) return;
+
+        if (currentUser.role === Role.MEMBER) {
+            alert("Members cannot post notices.");
+            return;
+        }
         
         const newPost: Post = {
             id: `post_${Date.now()}`,
@@ -141,10 +218,13 @@ export const App: React.FC = () => {
             timestamp: Date.now(),
             likes: 0,
             isNotice,
+            targetDistrict: currentUser.role === Role.SUB_ADMIN ? currentUser.district : 'All Bihar',
             expiryDate: isNotice ? Date.now() + (expiryHours * 60 * 60 * 1000) : undefined
         };
         
         setPosts(prev => [newPost, ...prev]);
+        setShowCreateNoticeModal(false);
+        setNewNoticeContent('');
     };
 
     const handleLikePost = async (postId: string, isLiked: boolean) => {
@@ -231,7 +311,10 @@ export const App: React.FC = () => {
         
         setMeetings(prev => [...prev, newMeet]);
         
-        const locationText = newMeeting.meetingType === 'whatsapp' ? 'WhatsApp Video Call' : newMeeting.venue;
+        let locationText = newMeeting.venue;
+        if (newMeeting.meetingType === 'whatsapp') locationText = 'WhatsApp Video Call';
+        if (newMeeting.meetingType === 'virtual') locationText = `Virtual Meeting: ${newMeeting.meetingLink}`;
+
         const noticeContent = `NEW EVENT: ${newMeeting.title} on ${newMeeting.date} at ${newMeeting.time}. Location: ${locationText}. Target: ${newMeeting.targetDistrict}`;
         
         handleAddPost(noticeContent, undefined, true);
@@ -279,21 +362,69 @@ export const App: React.FC = () => {
     };
 
     // Render Components
-    if (!currentUser) return <Auth onLogin={handleLogin} onSignup={handleSignup} currentLang={currentLang} onLangChange={setCurrentLang} totalUsers={users.length} />;
+    if (!navigator.onLine) {
+        return (
+            <div className="min-h-screen bg-ljp-primary flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-20 h-20 bg-red-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg animate-pulse">
+                    <Globe size={40} className="text-white" />
+                </div>
+                <h1 className="text-2xl font-bold text-white mb-2">{t.noInternet}</h1>
+                <p className="text-white/60 text-sm mb-8">{t.offlineMsg}</p>
+                <button 
+                    onClick={() => window.location.reload()}
+                    className="bg-white text-ljp-primary px-6 py-3 rounded-xl font-bold flex items-center gap-2"
+                >
+                    <RefreshCw size={18} />
+                    {t.tryAgain}
+                </button>
+            </div>
+        );
+    }
+
+    if (!currentUser) return <Auth onLogin={handleLogin} onSignup={handleSignup} currentLang={currentLang} onLangChange={setCurrentLang} totalUsers={users.length} onStart={() => setHasStarted(true)} hasStarted={hasStarted} isMuted={isMuted} onToggleMute={handleToggleMute} />;
     if (currentUser.status === UserStatus.PENDING) return <PendingApprovalScreen onLogout={handleLogout} t={t} />;
 
     const renderContent = () => {
         if (viewingNotice) {
-            return <div className="p-4">Notice View Placeholder</div>; 
+            return (
+                <div className="p-4 max-w-2xl mx-auto">
+                    <button onClick={() => setViewingNotice(null)} className="flex items-center text-gray-500 mb-6 font-bold">
+                        <ArrowLeft size={20} className="mr-2" /> {t.back}
+                    </button>
+                    <Dashboard 
+                        currentUser={currentUser}
+                        users={users}
+                        posts={[viewingNotice]}
+                        onAddNotice={handleAddPost}
+                        onDeleteNotice={(id) => { setPosts(prev => prev.filter(p => p.id !== id)); setViewingNotice(null); }}
+                        onEnhanceNotice={handleEnhanceNotice}
+                        onDownloadLetterhead={handleDownloadLetterhead}
+                        onCreateNotice={() => setShowCreateNoticeModal(true)}
+                        letterheadRef={letterheadRef}
+                        t={t}
+                        currentLang={currentLang}
+                    />
+                </div>
+            ); 
         }
 
         switch (currentTab) {
             case 'home':
-                const handleDeletePost = (id: string) => {
-                    setPosts(prev => prev.filter(p => p.id !== id));
-                };
-
-                return <Feed currentUser={currentUser} posts={posts} onAddPost={handleAddPost} onDeletePost={handleDeletePost} onLikePost={handleLikePost} t={t} currentLang={currentLang} onNoticeClick={handleNoticeClick} />;
+                return (
+                    <Dashboard 
+                        currentUser={currentUser}
+                        users={users}
+                        posts={posts}
+                        onAddNotice={handleAddPost}
+                        onDeleteNotice={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
+                        onEnhanceNotice={handleEnhanceNotice}
+                        onDownloadLetterhead={handleDownloadLetterhead}
+                        onCreateNotice={() => setShowCreateNoticeModal(true)}
+                        letterheadRef={letterheadRef}
+                        t={t}
+                        currentLang={currentLang}
+                    />
+                );
             
             case 'directory':
                 if (selectedUser) {
@@ -349,7 +480,8 @@ export const App: React.FC = () => {
                                                 {selectedUser.name}
                                                 {selectedUser.role === Role.SUB_ADMIN && <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full font-bold">SUB-ADMIN</span>}
                                             </h2>
-                                            <p className="text-ljp-secondary dark:text-blue-400 font-bold text-lg">{simulateDynamicTranslation(selectedUser.designation, currentLang)}</p>
+                                            <p className="text-ljp-secondary dark:text-blue-400 font-bold text-lg">{selectedUser.designation}</p>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{t.memberSince} {calculateTenure(selectedUser.joinedDate)}</p>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -414,31 +546,84 @@ export const App: React.FC = () => {
                         <div className="animate-fade-in space-y-6">
                             <button onClick={() => setSelectedMeeting(null)} className="flex items-center text-gray-500 font-bold"><ArrowLeft size={20} className="mr-2"/> {t.back}</button>
                             <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl">
-                                <h2 className="text-3xl font-bold mb-4 dark:text-white">{selectedMeeting.title}</h2>
+                                <div className="flex justify-between items-start mb-4">
+                                    <h2 className="text-3xl font-bold dark:text-white">{selectedMeeting.title}</h2>
+                                    {selectedMeeting.meetingType === 'virtual' && (
+                                        <a href={selectedMeeting.meetingLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-all">
+                                            <ExternalLink size={16} /> {t.joinMeeting}
+                                        </a>
+                                    )}
+                                </div>
                                 <p className="dark:text-gray-300 mb-6">{selectedMeeting.agenda}</p>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl"><Calendar className="mb-2 text-ljp-secondary"/>{selectedMeeting.date}</div>
-                                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl"><MapPin className="mb-2 text-ljp-secondary"/>{selectedMeeting.venue}</div>
+                                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                        <Calendar className="mb-2 text-ljp-secondary"/>
+                                        <p className="text-xs text-gray-400 font-bold uppercase">{t.date}</p>
+                                        <p className="font-bold dark:text-white">{selectedMeeting.date} at {selectedMeeting.time}</p>
+                                    </div>
+                                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                        <MapPin className="mb-2 text-ljp-secondary"/>
+                                        <p className="text-xs text-gray-400 font-bold uppercase">{t.venue}</p>
+                                        <p className="font-bold dark:text-white">{selectedMeeting.meetingType === 'whatsapp' ? 'WhatsApp' : selectedMeeting.meetingType === 'virtual' ? 'Virtual' : selectedMeeting.venue}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     );
                 }
+
+                const filteredMeetings = meetings.filter(m => {
+                    if (meetingFilter === 'All') return true;
+                    if (meetingFilter === 'State Level') return m.targetDistrict === 'All Bihar';
+                    if (meetingFilter === 'District Level') return m.targetDistrict !== 'All Bihar';
+                    return true;
+                });
+
                 return (
                     <div className="space-y-6 animate-fade-in">
                         <div className="flex justify-between items-center mb-2">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t.meetings}</h2>
                             {currentUser.role === Role.SUPER_ADMIN && <button onClick={() => setShowCreateMeetingModal(true)} className="bg-ljp-secondary text-white px-5 py-2.5 rounded-xl font-bold text-sm">+ {t.scheduleMeeting}</button>}
                         </div>
-                        {meetings.map(m => (
-                            <div key={m.id} onClick={() => setSelectedMeeting(m)} className="bg-white dark:bg-gray-800 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-lg transition-all">
-                                <h3 className="font-bold text-lg dark:text-white">{simulateDynamicTranslation(m.title, currentLang)}</h3>
-                                <div className="flex gap-4 text-xs text-gray-500 mt-2">
-                                    <span className="flex items-center"><Calendar size={14} className="mr-1"/> {m.date}</span>
-                                    <span className="flex items-center">{m.meetingType === 'whatsapp' ? <Video size={14} className="mr-1 text-green-500"/> : <MapPin size={14} className="mr-1"/>} {m.meetingType === 'whatsapp' ? 'WhatsApp' : m.venue}</span>
+
+                        {/* Filter Chips */}
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                            {(['All', 'State Level', 'District Level'] as const).map(filter => (
+                                <button
+                                    key={filter}
+                                    onClick={() => setMeetingFilter(filter)}
+                                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                                        meetingFilter === filter 
+                                        ? 'bg-ljp-secondary text-white shadow-md' 
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                    }`}
+                                >
+                                    {filter === 'All' ? t.allEvents : filter === 'State Level' ? t.stateLevel : t.districtLevel}
+                                </button>
+                            ))}
+                        </div>
+
+                        {filteredMeetings.length === 0 ? (
+                            <div className="text-center py-20 text-gray-500">{t.noMeetings}</div>
+                        ) : (
+                            filteredMeetings.map(m => (
+                                <div key={m.id} onClick={() => setSelectedMeeting(m)} className="bg-white dark:bg-gray-800 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-lg transition-all">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-bold text-lg dark:text-white">{m.title}</h3>
+                                        <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg ${m.targetDistrict === 'All Bihar' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                            {m.targetDistrict === 'All Bihar' ? t.stateLevel : t.districtLevel}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-4 text-xs text-gray-500 mt-2">
+                                        <span className="flex items-center"><Calendar size={14} className="mr-1"/> {m.date}</span>
+                                        <span className="flex items-center">
+                                            {m.meetingType === 'whatsapp' ? <Video size={14} className="mr-1 text-green-500"/> : m.meetingType === 'virtual' ? <Globe size={14} className="mr-1 text-blue-500"/> : <MapPin size={14} className="mr-1"/>} 
+                                            {m.meetingType === 'whatsapp' ? 'WhatsApp' : m.meetingType === 'virtual' ? 'Virtual' : m.venue}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 );
 
@@ -458,7 +643,7 @@ export const App: React.FC = () => {
                                     </div>
                                     <div>
                                         <p className="font-bold text-xl text-white mb-1">{currentUser.name}</p>
-                                        <p className="text-white/70 font-medium">{simulateDynamicTranslation(currentUser.designation, currentLang)}</p>
+                                        <p className="text-white/70 font-medium">{currentUser.designation}</p>
                                         <span className="text-xs text-ljp-accent font-bold mt-2 inline-block uppercase tracking-wider">{t.tapToView}</span>
                                     </div>
                                 </div>
@@ -534,7 +719,17 @@ export const App: React.FC = () => {
                                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
                                         {currentUser.name}
                                     </h2>
-                                    <p className="text-ljp-secondary dark:text-blue-400 font-bold text-lg">{simulateDynamicTranslation(currentUser.designation, currentLang)}</p>
+                                    <p className="text-ljp-secondary dark:text-blue-400 font-bold text-lg">{currentUser.designation}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{t.memberSince} {calculateTenure(currentUser.joinedDate)}</p>
+                                </div>
+
+                                <div className="mt-4">
+                                    <button 
+                                        onClick={handleDownloadIDCard}
+                                        className="w-full flex items-center justify-center gap-2 bg-black dark:bg-gray-700 text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all"
+                                    >
+                                        <Download size={18} /> {t.downloadIDCard}
+                                    </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -556,7 +751,14 @@ export const App: React.FC = () => {
                                     <div className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
                                         <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">Status</label>
                                         <p className="font-bold text-green-600 flex items-center text-lg">
-                                            <CheckCircle size={20} className="mr-2" /> Active Member
+                                            <CheckCircle size={20} className="mr-2" /> {t.activeMember}
+                                        </p>
+                                    </div>
+                                    <div className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                        <label className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-2">{t.joinedDate}</label>
+                                        <p className="font-semibold flex items-center text-gray-700 dark:text-gray-200 text-lg">
+                                            <Calendar size={20} className="mr-2 text-ljp-accent" /> 
+                                            {currentUser.joinedDate ? new Date(currentUser.joinedDate).toLocaleDateString() : 'N/A'}
                                         </p>
                                     </div>
                                 </div>
@@ -606,27 +808,86 @@ export const App: React.FC = () => {
                             <button onClick={() => setShowCreateMeetingModal(false)}><X size={20} className="text-gray-500" /></button>
                         </div>
                         <form onSubmit={handleCreateMeeting} className="space-y-4">
-                            <input type="text" placeholder={t.title} required className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <input type="date" required className="bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} />
-                                <input type="time" required className="bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} />
+                            <input type="text" placeholder={t.meetingTitle} value={newMeeting.title} onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" required />
+                            <div className="grid grid-cols-2 gap-3">
+                                <input type="date" value={newMeeting.date} onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} className="bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" required />
+                                <input type="time" value={newMeeting.time} onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} className="bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" required />
                             </div>
-                            <div className="flex gap-2 bg-gray-100 dark:bg-gray-900 p-1 rounded-xl">
-                                <button type="button" onClick={() => setNewMeeting({...newMeeting, meetingType: 'physical'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${newMeeting.meetingType === 'physical' ? 'bg-white dark:bg-gray-700 shadow-sm text-black dark:text-white' : 'text-gray-500'}`}>{t.physical}</button>
-                                <button type="button" onClick={() => setNewMeeting({...newMeeting, meetingType: 'whatsapp'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${newMeeting.meetingType === 'whatsapp' ? 'bg-green-100 text-green-700' : 'text-gray-500'}`}>{t.whatsapp}</button>
-                            </div>
-                            {newMeeting.meetingType === 'physical' ? (
-                                <input type="text" placeholder={t.venue} required className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" onChange={e => setNewMeeting({...newMeeting, venue: e.target.value})} />
-                            ) : (
-                                <div className="p-3 bg-green-50 text-green-700 rounded-xl text-sm font-bold flex items-center justify-center border border-green-100"><Video size={18} className="mr-2" /> {t.whatsappCall}</div>
-                            )}
-                            <textarea placeholder={t.agenda} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" rows={3} onChange={e => setNewMeeting({...newMeeting, agenda: e.target.value})} />
-                            <select className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" onChange={e => setNewMeeting({...newMeeting, targetDistrict: e.target.value})}>
-                                <option value="All Bihar">{t.allDistricts}</option>
-                                {BIHAR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                            <select value={newMeeting.meetingType} onChange={e => setNewMeeting({...newMeeting, meetingType: e.target.value as any})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white">
+                                <option value="physical">{t.physical}</option>
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="virtual">Virtual (Meet/Zoom)</option>
                             </select>
-                            <button className="w-full bg-ljp-secondary text-white py-3 rounded-xl font-bold hover:brightness-110">{t.scheduleMeeting}</button>
+                            {newMeeting.meetingType === 'virtual' ? (
+                                <input type="url" placeholder="Meeting Link (https://...)" value={newMeeting.meetingLink} onChange={e => setNewMeeting({...newMeeting, meetingLink: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" required />
+                            ) : (
+                                <input type="text" placeholder={t.venue} value={newMeeting.venue} onChange={e => setNewMeeting({...newMeeting, venue: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" required={newMeeting.meetingType === 'physical'} />
+                            )}
+                            <textarea placeholder={t.agenda} value={newMeeting.agenda} onChange={e => setNewMeeting({...newMeeting, agenda: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm min-h-[100px] dark:text-white" required></textarea>
+                            
+                            {currentUser.role === Role.SUPER_ADMIN && (
+                                <select value={newMeeting.targetDistrict} onChange={e => setNewMeeting({...newMeeting, targetDistrict: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white">
+                                    <option value="All Bihar">{t.allBihar}</option>
+                                    {BIHAR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            )}
+
+                            <button className="w-full bg-ljp-secondary text-white py-3 rounded-xl font-bold hover:brightness-110">
+                                {t.schedule}
+                            </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {showCreateNoticeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreateNoticeModal(false)}></div>
+                    <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-3xl p-6 relative z-10 shadow-2xl animate-fade-in">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">{t.createNotice}</h3>
+                            <button onClick={() => setShowCreateNoticeModal(false)}><X size={20} className="text-gray-500" /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <textarea 
+                                    placeholder={t.noticePlaceholder} 
+                                    value={newNoticeContent} 
+                                    onChange={e => setNewNoticeContent(e.target.value)} 
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-4 text-sm min-h-[200px] dark:text-white"
+                                ></textarea>
+                                <button 
+                                    onClick={async () => {
+                                        if (!newNoticeContent) return;
+                                        setIsEnhancing(true);
+                                        const enhanced = await handleEnhanceNotice(newNoticeContent);
+                                        setNewNoticeContent(enhanced);
+                                        setIsEnhancing(false);
+                                    }}
+                                    disabled={isEnhancing || !newNoticeContent}
+                                    className="absolute bottom-4 right-4 flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-purple-700 disabled:opacity-50 transition-all shadow-lg shadow-purple-200 dark:shadow-none"
+                                >
+                                    {isEnhancing ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                    {t.enhanceWithAI}
+                                </button>
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setShowCreateNoticeModal(false)}
+                                    className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-bold"
+                                >
+                                    {t.cancel}
+                                </button>
+                                <button 
+                                    onClick={() => handleAddPost(newNoticeContent, undefined, true)}
+                                    disabled={!newNoticeContent}
+                                    className="flex-[2] bg-ljp-secondary text-white py-3 rounded-xl font-bold hover:brightness-110 disabled:opacity-50"
+                                >
+                                    {t.publishNotice}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -790,7 +1051,9 @@ export const App: React.FC = () => {
                              <select value={editProfileData.district} onChange={e => setEditProfileData({...editProfileData, district: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white">
                                 {BIHAR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
-                            <input type="text" placeholder={t.designationPlaceholder} value={editProfileData.designation} onChange={e => setEditProfileData({...editProfileData, designation: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white" />
+                            <select value={editProfileData.designation} onChange={e => setEditProfileData({...editProfileData, designation: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-xl p-3 text-sm dark:text-white">
+                                {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
                             
                             <button className="w-full bg-ljp-secondary text-white py-3 rounded-xl font-bold hover:brightness-110">
                                 {t.submit}
@@ -799,6 +1062,124 @@ export const App: React.FC = () => {
                     </div>
                 </div>
             )}
+            {/* --- Hidden Letterhead for Generation --- */}
+            <div className="fixed -left-[3000px] top-0">
+                <div 
+                    ref={letterheadRef}
+                    className="w-[800px] bg-white p-12 font-serif relative"
+                    style={{ minHeight: '1100px' }}
+                >
+                    {/* Header */}
+                    <div className="border-b-4 border-ljp-secondary pb-6 mb-8 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-20 h-20 bg-ljp-secondary rounded-2xl flex items-center justify-center text-white font-bold text-4xl">L</div>
+                            <div>
+                                <h1 className="text-4xl font-black text-gray-900 tracking-tighter">LJP SPORTS CELL</h1>
+                                <p className="text-ljp-secondary font-bold text-sm tracking-[0.3em] uppercase">Bihar State Committee</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs font-bold text-gray-400 uppercase">Official Correspondence</p>
+                            <p className="text-sm font-bold text-gray-900">Ref: LJP/SC/{viewingNotice?.id.substring(0,6).toUpperCase()}</p>
+                            <p className="text-sm font-bold text-gray-900">Date: {viewingNotice ? new Date(viewingNotice.timestamp).toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="py-10">
+                        <h2 className="text-center text-3xl font-black underline mb-12 uppercase tracking-widest">OFFICIAL NOTICE</h2>
+                        <div className="text-xl leading-relaxed text-gray-800 whitespace-pre-wrap min-h-[400px]">
+                            {viewingNotice?.content}
+                        </div>
+                    </div>
+
+                    {/* Footer / Signature */}
+                    <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
+                        <div className="w-48">
+                            <div className="p-2 border border-gray-100 rounded-lg inline-block">
+                                <QRCodeSVG value={`LJP-NOTICE-${viewingNotice?.id}`} size={80} />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase">Scan to verify authenticity</p>
+                        </div>
+                        <div className="text-right">
+                            <div className="mb-4 h-16 flex items-end justify-end">
+                                <p className="font-serif italic text-2xl text-gray-400 opacity-50">Digital Signature</p>
+                            </div>
+                            <p className="text-2xl font-black text-gray-900 uppercase">{viewingNotice?.userName}</p>
+                            <p className="text-ljp-secondary font-bold text-lg">{viewingNotice?.userDesignation}</p>
+                            <p className="text-sm font-bold text-gray-500">LJP Sports Cell, Bihar</p>
+                        </div>
+                    </div>
+
+                    {/* Bottom Bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-ljp-secondary"></div>
+                </div>
+            </div>
+
+            {/* --- Hidden ID Card for Generation --- */}
+            <div className="fixed -left-[2000px] top-0">
+                <div 
+                    ref={idCardRef}
+                    className="w-[400px] h-[600px] bg-white relative overflow-hidden font-sans"
+                    style={{ backgroundImage: 'linear-gradient(135deg, #003366 0%, #000000 100%)' }}
+                >
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+                    
+                    {/* Header */}
+                    <div className="p-6 text-center border-b border-white/20">
+                        <div className="w-16 h-16 bg-ljp-secondary rounded-xl mx-auto mb-3 flex items-center justify-center text-white font-bold text-2xl shadow-lg">L</div>
+                        <h1 className="text-white font-bold text-xl tracking-tight">LJP SPORTS CELL</h1>
+                        <p className="text-ljp-accent text-[10px] font-bold tracking-[0.2em] uppercase">Bihar State Committee</p>
+                    </div>
+
+                    {/* Photo */}
+                    <div className="mt-8 flex justify-center">
+                        <div className="relative">
+                            <div className="w-32 h-32 rounded-2xl border-4 border-ljp-secondary overflow-hidden shadow-2xl bg-gray-800">
+                                <img src={currentUser.photoUrl} className="w-full h-full object-cover" alt="ID" />
+                            </div>
+                            {currentUser.badge && (
+                                <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-lg">
+                                    <BadgeCheck size={24} className="text-blue-500" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Details */}
+                    <div className="mt-6 px-8 text-center">
+                        <h2 className="text-white font-bold text-2xl mb-1">{currentUser.name}</h2>
+                        <p className="text-ljp-secondary font-bold text-sm uppercase tracking-wider">{currentUser.designation}</p>
+                        <div className="mt-4 inline-block px-3 py-1 bg-white/10 rounded-full border border-white/10">
+                            <p className="text-white/60 text-[10px] font-bold uppercase">{currentUser.district} District</p>
+                        </div>
+                    </div>
+
+                    {/* Info Grid */}
+                    <div className="mt-8 px-8 grid grid-cols-2 gap-4">
+                        <div className="text-left">
+                            <p className="text-white/40 text-[8px] font-bold uppercase">Member ID</p>
+                            <p className="text-white text-xs font-mono">{currentUser.id.substring(0, 8).toUpperCase()}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-white/40 text-[8px] font-bold uppercase">Joined</p>
+                            <p className="text-white text-xs">{currentUser.joinedDate ? new Date(currentUser.joinedDate).toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    {/* QR Code */}
+                    <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center">
+                        <div className="p-2 bg-white rounded-lg shadow-xl">
+                            <QRCodeSVG value={`LJP-SPORTS-${currentUser.id}`} size={60} />
+                        </div>
+                        <p className="text-white/30 text-[8px] mt-2 font-bold tracking-widest uppercase underline decoration-ljp-secondary">Verify at ljpbihar.org</p>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="absolute bottom-0 left-0 right-0 h-2 bg-ljp-secondary"></div>
+                </div>
+            </div>
         </Layout>
     );
 };

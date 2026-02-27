@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Role, BIHAR_DISTRICTS, UserStatus } from '../types';
 import { Download, Search, MapPin, ChevronRight, MoreVertical, Trash2, Eye, EyeOff, BadgeCheck, UserPlus, X, Phone, User as UserIcon, CheckCircle, Shield, AlertTriangle, Ban } from 'lucide-react';
-import { simulateDynamicTranslation, Language } from '../services/translations';
+import { Language } from '../services/translations';
 
 interface DirectoryProps {
     currentUser: User;
@@ -180,7 +180,7 @@ export const Directory: React.FC<DirectoryProps> = ({ currentUser, users, onUser
                                         {user.role === Role.SUB_ADMIN && <span className="text-[8px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold uppercase">ADMIN</span>}
                                     </h3>
                                     <p className="text-[10px] text-ljp-secondary dark:text-blue-400 font-bold uppercase tracking-wide mt-0.5 truncate max-w-[150px]">
-                                        {simulateDynamicTranslation(user.designation, currentLang)}
+                                        {user.designation}
                                         {user.jurisdiction ? `, ${user.jurisdiction}` : ''}
                                     </p>
                                     <div className="flex items-center text-gray-500 dark:text-gray-400 text-[10px] mt-1">

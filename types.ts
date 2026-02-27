@@ -27,6 +27,7 @@ export interface User {
     pendingChanges?: Partial<User>; 
     badge?: 'blue' | 'green' | 'red' | null; // Blue=Head, Green=Mid, Red=Low
     rejectionReason?: string; // To show why changes were rejected
+    joinedDate: number; // New: Timestamp for membership calculation
 }
 
 export interface Post {
@@ -43,6 +44,7 @@ export interface Post {
     comments?: number;
     isNotice?: boolean;
     expiryDate?: number;
+    targetDistrict?: string; // New: For filtering notices
     relatedMeetingId?: string; 
 }
 
@@ -51,12 +53,22 @@ export interface Meeting {
     title: string;
     date: string;
     time: string;
-    venue: string;
-    meetingType: 'physical' | 'whatsapp'; // New Field
+    venue?: string;
+    meetingLink?: string; // New: For virtual meetings
+    meetingType: 'physical' | 'whatsapp' | 'virtual'; // Added virtual
     agenda: string;
     targetDistrict: 'All Bihar' | string;
     createdBy: string;
 }
+
+export const DESIGNATIONS = [
+    'Pradesh Adhyaksh', 
+    'Zila Adhyaksh', 
+    'Prakhand Adhyaksh', 
+    'Ward Sadasya', 
+    'Karyakarta', 
+    'Other'
+];
 
 export const BIHAR_DISTRICTS = [
     "Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar", 

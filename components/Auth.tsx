@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { BIHAR_DISTRICTS } from '../types';
-import { Upload, CheckCircle, Clock, ChevronRight, AlertCircle, Globe, Loader2, Lock } from 'lucide-react';
+import { BIHAR_DISTRICTS, DESIGNATIONS } from '../types';
+import { Upload, CheckCircle, Clock, ChevronRight, AlertCircle, Globe, Loader2, Lock, Play, Volume2, VolumeX } from 'lucide-react';
 import { Language, translations } from '../services/translations';
 import { compressImage } from '../services/imageUtils';
 import { MAX_USERS, REGISTRATION_DISABLED_MSG } from '../services/config';
@@ -11,9 +11,13 @@ interface AuthProps {
     currentLang: Language;
     onLangChange: (lang: Language) => void;
     totalUsers: number;
+    onStart: () => void;
+    hasStarted: boolean;
+    isMuted: boolean;
+    onToggleMute: () => void;
 }
 
-export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLangChange, totalUsers }) => {
+export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLangChange, totalUsers, onStart, hasStarted, isMuted, onToggleMute }) => {
     const [isSignup, setIsSignup] = useState(false);
     const [loginMobile, setLoginMobile] = useState('');
     const [showUploadError, setShowUploadError] = useState(false);
@@ -28,10 +32,60 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLa
         fatherName: '',
         mobile: '',
         district: BIHAR_DISTRICTS[0],
-        designation: '',
+        designation: DESIGNATIONS[DESIGNATIONS.length - 1], // Default to 'Other'
         jurisdiction: '', // New Field
         appointmentLetter: null as File | null
     });
+
+    if (!hasStarted) {
+        return (
+            <div className="min-h-screen bg-ljp-primary flex flex-col items-center justify-center p-4 text-center relative overflow-hidden">
+                {/* Background Accents */}
+                <div className="absolute -top-24 -left-24 w-96 h-96 bg-ljp-accent/10 rounded-full blur-3xl"></div>
+                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-ljp-secondary/20 rounded-full blur-3xl"></div>
+
+                <div className="w-24 h-24 bg-ljp-accent rounded-3xl flex items-center justify-center mb-8 animate-bounce relative z-10">
+                    <span className="text-ljp-primary font-black text-4xl">LJP</span>
+                </div>
+                <h1 className="text-3xl font-bold text-white mb-4 relative z-10">{t.appTitle}</h1>
+                <p className="text-ljp-accent font-medium mb-12 relative z-10">{t.appSubtitle}</p>
+                
+                <div className="flex flex-col items-center gap-6 relative z-10">
+                    <button 
+                        onClick={onStart}
+                        className="bg-white text-ljp-primary px-10 py-5 rounded-2xl font-bold text-xl shadow-2xl flex items-center space-x-3 hover:scale-105 active:scale-95 transition-all"
+                    >
+                        <Play size={24} fill="currentColor" />
+                        <span>{t.tapToStart}</span>
+                    </button>
+
+                    <button 
+                        onClick={onToggleMute}
+                        className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm font-bold"
+                    >
+                        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        {isMuted ? t.unmuteAudio : t.muteAudio}
+                    </button>
+                </div>
+
+                <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-3 z-10">
+                    {(['en', 'hi', 'hn'] as Language[]).map(lang => (
+                        <button
+                            key={lang}
+                            onClick={() => onLangChange(lang)}
+                            className={`text-[10px] font-bold py-1 px-3 rounded-full transition-all border ${
+                                currentLang === lang 
+                                ? 'bg-ljp-accent text-ljp-primary border-transparent' 
+                                : 'bg-white/10 text-white/60 border-white/10 hover:bg-white/20'
+                            }`}
+                        >
+                            {lang.toUpperCase()}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     // Helper to enforce number only and 10 digits
     const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>, isLogin: boolean) => {
@@ -67,17 +121,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLa
             // 1. Client-Side Compression (Target 50-60KB WebP)
             const compressedImageBase64 = await compressImage(formData.appointmentLetter);
 
-            // MOCK MODE: No Firebase Storage. Passing base64 directly.
-            // In production, this base64 string would be too large for some DBs, 
-            // but for local testing in memory, it works fine.
-            
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 800));
-
             // 3. Create User in App with the Base64 String
             onSignup({
                 ...formData,
-                appointmentLetterUrl: compressedImageBase64
+                appointmentLetterUrl: compressedImageBase64,
+                joinedDate: Date.now()
             });
 
         } catch (error) {
@@ -181,8 +229,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLa
                                 {BIHAR_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
 
-                            <input type="text" placeholder={t.designationPlaceholder} required className="auth-input" 
-                                onChange={e => setFormData({...formData, designation: e.target.value})} disabled={isSubmitting} />
+                            <select className="auth-input bg-gray-50 dark:bg-gray-900" 
+                                value={formData.designation}
+                                onChange={e => setFormData({...formData, designation: e.target.value})} disabled={isSubmitting}>
+                                {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
                                 
                             <input type="text" placeholder="Area/Jurisdiction (Optional)" className="auth-input" 
                                 onChange={e => setFormData({...formData, jurisdiction: e.target.value})} disabled={isSubmitting} />
@@ -262,6 +313,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLa
                 .dark .auth-input:focus {
                     border-color: #3B82F6;
                     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+                }
+                .dark select.auth-input option {
+                    background-color: #111827;
+                    color: #F3F4F6;
                 }
             `}</style>
         </div>
