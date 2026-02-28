@@ -12,7 +12,8 @@ export const MOCK_USERS: User[] = [
         jurisdiction: 'State Head',
         role: Role.SUPER_ADMIN,
         status: UserStatus.APPROVED,
-        photoUrl: 'https://ui-avatars.com/api/?name=Admin&background=2B0080&color=fff'
+        photoUrl: 'https://ui-avatars.com/api/?name=Admin&background=2B0080&color=fff',
+        joinedDate: Date.now() - 31536000000 // 1 year ago
     },
     {
         id: 'member_test',
@@ -23,7 +24,8 @@ export const MOCK_USERS: User[] = [
         designation: 'Karyakarta',
         role: Role.MEMBER,
         status: UserStatus.APPROVED,
-        photoUrl: 'https://ui-avatars.com/api/?name=Member&background=random'
+        photoUrl: 'https://ui-avatars.com/api/?name=Member&background=random',
+        joinedDate: Date.now() - 15768000000 // 6 months ago
     },
     {
         id: 'admin1',
@@ -35,7 +37,8 @@ export const MOCK_USERS: User[] = [
         jurisdiction: 'State Head',
         role: Role.SUPER_ADMIN,
         status: UserStatus.APPROVED,
-        photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+        photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+        joinedDate: Date.now() - 63072000000 // 2 years ago
     },
     {
         id: 'member1',
@@ -47,7 +50,8 @@ export const MOCK_USERS: User[] = [
         jurisdiction: 'Patna West',
         role: Role.MEMBER,
         status: UserStatus.APPROVED,
-        photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+        photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+        joinedDate: Date.now() - 7884000000 // 3 months ago
     },
     {
         id: 'member2',
@@ -58,7 +62,8 @@ export const MOCK_USERS: User[] = [
         designation: 'General Secretary',
         role: Role.MEMBER,
         status: UserStatus.PENDING,
-        appointmentLetterUrl: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+        appointmentLetterUrl: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+        joinedDate: Date.now() // Just joined
     }
 ];
 

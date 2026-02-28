@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { Language } from './translations';
 
 // Helper to get client with current key (handles Veo/Pro constraints)
 const getClient = async (isProModel: boolean = false): Promise<GoogleGenAI> => {
@@ -20,6 +21,32 @@ const getClient = async (isProModel: boolean = false): Promise<GoogleGenAI> => {
     }
 
     return new GoogleGenAI({ apiKey: apiKey });
+};
+
+// Text Enhancement (Gemini 3 Flash)
+export const enhanceNotice = async (content: string, lang: Language): Promise<string> => {
+    try {
+        const ai = await getClient(false);
+        
+        let prompt = "";
+        if (lang === 'hi') {
+            prompt = `कृपया निम्नलिखित नोटिस सामग्री को बेहतर बनाएं, इसे अधिक पेशेवर, स्पष्ट और प्रभावशाली बनाएं। हिंदी में उत्तर दें: "${content}"`;
+        } else if (lang === 'hn') {
+            prompt = `Please enhance the following notice content to make it more professional, clear, and impactful. Keep the language in Hinglish (Hindi written in English script): "${content}"`;
+        } else {
+            prompt = `Please enhance the following notice content to make it more professional, clear, and impactful. Keep the language in English: "${content}"`;
+        }
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt
+        });
+
+        return response.text || content;
+    } catch (error) {
+        console.error("Error enhancing notice:", error);
+        return content; // Return original content on error
+    }
 };
 
 // Image Generation using Nano Banana Pro (Gemini 3 Pro Image)
