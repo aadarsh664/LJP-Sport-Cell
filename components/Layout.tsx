@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Users, Calendar, UserCircle, LogOut, Globe, Moon, Sun, Monitor, Menu, X, Bell, ChevronRight, Settings, AlertCircle } from 'lucide-react';
+import { Home, Users, Calendar, UserCircle, LogOut, Globe, Moon, Sun, Monitor, Menu, X, Bell, ChevronRight, Settings, AlertCircle, Volume2, VolumeX } from 'lucide-react';
 import { Role, ThemeMode, Post } from '../types';
 import { Language } from '../services/translations';
 
@@ -17,10 +17,13 @@ interface LayoutProps {
     hasNotices: boolean;
     allNotices: Post[]; // Pass all notices for history
     onNoticeClick: (post: Post) => void;
+    isMuted: boolean;
+    onToggleMute: () => void;
+    onStartTour: () => void;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
-    children, currentTab, onTabChange, userRole, onLogout, currentLang, onLangChange, t, themeMode, onThemeChange, hasNotices, allNotices, onNoticeClick 
+    children, currentTab, onTabChange, userRole, onLogout, currentLang, onLangChange, t, themeMode, onThemeChange, hasNotices, allNotices, onNoticeClick, isMuted, onToggleMute, onStartTour
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -86,6 +89,15 @@ export const Layout: React.FC<LayoutProps> = ({
                         </div>
                         <span>Notices</span>
                     </button>
+
+                    {/* Start Audio Tour Button */}
+                    <button 
+                         onClick={onStartTour}
+                         className="w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                        <Volume2 size={20} />
+                        <span>{t.startAudioTour}</span>
+                    </button>
                 </nav>
 
                 <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800 space-y-4">
@@ -103,7 +115,7 @@ export const Layout: React.FC<LayoutProps> = ({
                                 className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                             >
                                 <Globe size={14} />
-                                <span>{currentLang.toUpperCase()}</span>
+                                <span className="uppercase">{currentLang}</span>
                             </button>
                             {isLangMenuOpen && (
                                 <div className="absolute bottom-full mb-2 left-0 w-24 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden py-1 animate-fade-in z-50">
@@ -140,6 +152,13 @@ export const Layout: React.FC<LayoutProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-4">
+                    <button 
+                        onClick={onToggleMute}
+                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                        {isMuted ? <VolumeX size={20} className="text-gray-500" /> : <Volume2 size={20} className="text-ljp-secondary" />}
+                    </button>
+
                     <button 
                         onClick={() => setIsNotifOpen(true)}
                         className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"

@@ -93,7 +93,43 @@ export const translations = {
     promoteConfirm: "This user will gain Sub-Admin privileges for their district.",
     demoteConfirm: "This user will lose Admin privileges.",
     badgeConfirm: "Update member badge status?",
-    review: "Review"
+    review: "Review",
+    // New Keys
+    totalMembers: "Total Members",
+    totalLocations: "Total Locations (Districts)",
+    pendingApprovals: "Pending Approvals",
+    activeDistricts: "Active Districts",
+    noticeBoard: "Notice Board",
+    downloadLetterhead: "Download Letterhead",
+    enhanceWithAI: "Enhance with AI",
+    allEvents: "All",
+    stateLevel: "State Level",
+    districtLevel: "District Level",
+    memberSince: "Active since",
+    days: "days",
+    months: "months",
+    years: "years",
+    noInternet: "No Internet Connection",
+    offlineMsg: "Please check your internet connection and try again.",
+    joinMeeting: "Join Meeting",
+    downloadIDCard: "Download ID Card",
+    activeMember: "Active Member",
+    joinedDate: "Joined Date",
+    noMeetings: "No upcoming meetings scheduled.",
+    muteAudio: "Mute Audio",
+    unmuteAudio: "Unmute Audio",
+    startAudioTour: "Start Audio Tour",
+    audioTourStarted: "Audio Tour Started",
+    tapToStart: "Tap to Start",
+    chooseFormat: "Choose Format",
+    downloadJPG: "Download as JPG",
+    downloadPDF: "Download as PDF",
+    generating: "Generating...",
+    aiEnhancePlaceholder: "Type your notice content here...",
+    enhanceBtn: "Enhance with AI",
+    original: "Original",
+    enhanced: "Enhanced",
+    useEnhanced: "Use Enhanced Version"
   },
   hi: {
     appTitle: "लोजपा खेल प्रकोष्ठ",
@@ -186,7 +222,43 @@ export const translations = {
     promoteConfirm: "यह उपयोगकर्ता अपने जिले के लिए सब-एडमिन विशेषाधिकार प्राप्त करेगा।",
     demoteConfirm: "यह उपयोगकर्ता एडमिन विशेषाधिकार खो देगा।",
     badgeConfirm: "सदस्य बैज स्थिति अपडेट करें?",
-    review: "समीक्षा"
+    review: "समीक्षा",
+    // New Keys
+    totalMembers: "कुल सदस्य",
+    totalLocations: "कुल स्थान (जिले)",
+    pendingApprovals: "लंबित अनुमोदन",
+    activeDistricts: "सक्रिय जिले",
+    noticeBoard: "सूचना पट्ट",
+    downloadLetterhead: "लेटरहेड डाउनलोड करें",
+    enhanceWithAI: "AI से बेहतर बनाएं",
+    allEvents: "सभी",
+    stateLevel: "प्रदेश स्तर",
+    districtLevel: "जिला स्तर",
+    memberSince: "सक्रिय सदस्य",
+    days: "दिन",
+    months: "महीने",
+    years: "वर्ष",
+    noInternet: "इंटरनेट कनेक्शन नहीं है",
+    offlineMsg: "कृपया अपना इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें।",
+    joinMeeting: "मीटिंग में शामिल हों",
+    downloadIDCard: "आईडी कार्ड डाउनलोड करें",
+    activeMember: "सक्रिय सदस्य",
+    joinedDate: "जुड़ने की तिथि",
+    noMeetings: "कोई आगामी बैठक निर्धारित नहीं है।",
+    muteAudio: "ऑडियो म्यूट करें",
+    unmuteAudio: "ऑडियो अनम्यूट करें",
+    startAudioTour: "ऑडियो टूर शुरू करें",
+    audioTourStarted: "ऑडियो टूर शुरू हो गया",
+    tapToStart: "शुरू करने के लिए टैप करें",
+    chooseFormat: "प्रारूप चुनें",
+    downloadJPG: "JPG के रूप में डाउनलोड करें",
+    downloadPDF: "PDF के रूप में डाउनलोड करें",
+    generating: "उत्पन्न हो रहा है...",
+    aiEnhancePlaceholder: "अपनी सूचना यहाँ टाइप करें...",
+    enhanceBtn: "AI से बेहतर बनाएं",
+    original: "मूल",
+    enhanced: "बेहतर",
+    useEnhanced: "बेहतर संस्करण का उपयोग करें"
   },
   hn: {
     appTitle: "LJP Sports Cell",
@@ -279,27 +351,75 @@ export const translations = {
     promoteConfirm: "User ko Sub-Admin power mil jayegi.",
     demoteConfirm: "User Admin power kho dega.",
     badgeConfirm: "Badge update karein?",
-    review: "Review"
+    review: "Review",
+    // New Keys
+    totalMembers: "Total Members",
+    totalLocations: "Total Locations (Districts)",
+    pendingApprovals: "Pending Approvals",
+    activeDistricts: "Active Districts",
+    noticeBoard: "Notice Board",
+    downloadLetterhead: "Download Letterhead",
+    enhanceWithAI: "Enhance with AI",
+    allEvents: "Sabhi",
+    stateLevel: "State Level",
+    districtLevel: "District Level",
+    memberSince: "Active since",
+    days: "din",
+    months: "mahine",
+    years: "saal",
+    noInternet: "No Internet Connection",
+    offlineMsg: "Please check your internet connection and try again.",
+    joinMeeting: "Join Meeting",
+    downloadIDCard: "Download ID Card",
+    activeMember: "Active Member",
+    joinedDate: "Joined Date",
+    noMeetings: "Koi meeting scheduled nahi hai.",
+    muteAudio: "Mute Audio",
+    unmuteAudio: "Unmute Audio",
+    startAudioTour: "Start Audio Tour",
+    audioTourStarted: "Audio Tour Started",
+    tapToStart: "Tap to Start",
+    chooseFormat: "Format Chunein",
+    downloadJPG: "Download as JPG",
+    downloadPDF: "Download as PDF",
+    generating: "Generating...",
+    aiEnhancePlaceholder: "Notice content yahan likhein...",
+    enhanceBtn: "Enhance with AI",
+    original: "Original",
+    enhanced: "Enhanced",
+    useEnhanced: "Use Enhanced Version"
   }
 };
 
-export const simulateDynamicTranslation = (text: string, lang: Language): string => {
-    if (lang === 'en') return text;
+export const dynamicTransliterate = (text: string, lang: Language): string => {
+    if (lang === 'en' || !text) return text;
+    
+    // Basic Transliteration Map for Common Names/Terms
+    const map: { [key: string]: string } = {
+        'Amit': 'अमित', 'Kumar': 'कुमार', 'Singh': 'सिंह', 'Yadav': 'यादव', 'Paswan': 'पासवान',
+        'Bihar': 'बिहार', 'Patna': 'पटना', 'District': 'जिला', 'President': 'अध्यक्ष',
+        'Secretary': 'सचिव', 'General': 'महासचिव', 'State': 'प्रदेश', 'Cell': 'प्रकोष्ठ',
+        'Sports': 'खेल', 'LJP': 'लोजपा', 'Ram': 'राम', 'Vilas': 'विलास', 'Chirag': 'चिराग',
+        'Meeting': 'बैठक', 'Urgent': 'अति आवश्यक', 'Notice': 'सूचना', 'Member': 'सदस्य'
+    };
+
+    // If exact match found
+    if (map[text]) return map[text];
+
+    // If Hinglish, return as is or minimal mapping
+    if (lang === 'hn') return text;
+
+    // For Hindi, try to replace known words within the string
     let translated = text;
-    if (lang === 'hi') {
-        translated = translated
-            .replace(/Meeting/gi, "बैठक")
-            .replace(/URGENT/gi, "अति आवश्यक")
-            .replace(/Monday/gi, "सोमवार")
-            .replace(/Sunday/gi, "रविवार")
-            .replace(/District/gi, "जिला")
-            .replace(/State/gi, "प्रदेश")
-            .replace(/Physical Location/gi, "भौतिक स्थान")
-            .replace(/WhatsApp Video Call/gi, "व्हाट्सएप वीडियो कॉल")
-            .replace(/Pradesh/gi, "प्रदेश")
-            .replace(/Adhyaksh/gi, "अध्यक्ष")
-            .replace(/Zila/gi, "जिला")
-            .replace(/General Secretary/gi, "महासचिव");
-    }
+    Object.keys(map).forEach(key => {
+        const regex = new RegExp(`\\b${key}\\b`, 'gi');
+        translated = translated.replace(regex, map[key]);
+    });
+
     return translated;
+};
+
+// Deprecated: Use dynamicTransliterate instead
+export const simulateDynamicTranslation = (text: string, lang: Language): string => {
+    return dynamicTransliterate(text, lang);
 };

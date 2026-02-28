@@ -47,13 +47,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLa
                 <div className="w-24 h-24 bg-ljp-accent rounded-3xl flex items-center justify-center mb-8 animate-bounce relative z-10">
                     <span className="text-ljp-primary font-black text-4xl">LJP</span>
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-4 relative z-10">{t.appTitle}</h1>
-                <p className="text-ljp-accent font-medium mb-12 relative z-10">{t.appSubtitle}</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-4 relative z-10">{t.appTitle}</h1>
+                <p className="text-ljp-accent font-medium mb-12 relative z-10 text-sm md:text-base">{t.appSubtitle}</p>
                 
                 <div className="flex flex-col items-center gap-6 relative z-10">
                     <button 
                         onClick={onStart}
-                        className="bg-white text-ljp-primary px-10 py-5 rounded-2xl font-bold text-xl shadow-2xl flex items-center space-x-3 hover:scale-105 active:scale-95 transition-all"
+                        className="bg-white text-ljp-primary px-8 py-4 md:px-10 md:py-5 rounded-2xl font-bold text-lg md:text-xl shadow-2xl flex items-center space-x-3 hover:scale-105 active:scale-95 transition-all"
                     >
                         <Play size={24} fill="currentColor" />
                         <span>{t.tapToStart}</span>
@@ -61,7 +61,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onSignup, currentLang, onLa
 
                     <button 
                         onClick={onToggleMute}
-                        className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm font-bold"
+                        className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-xs md:text-sm font-bold"
                     >
                         {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         {isMuted ? t.unmuteAudio : t.muteAudio}

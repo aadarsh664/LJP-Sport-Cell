@@ -111,9 +111,9 @@ export const Directory: React.FC<DirectoryProps> = ({ currentUser, users, onUser
         <div className="space-y-6 animate-fade-in pb-20" onClick={() => setActiveMenuId(null)}>
             <div className="flex flex-row justify-between items-center gap-4 mt-2">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         {t.directory} 
-                        <span className="text-sm font-medium bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full text-gray-500">
+                        <span className="text-xs md:text-sm font-medium bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full text-gray-500">
                             {filteredUsers.length} Member
                         </span>
                     </h2>
@@ -140,7 +140,7 @@ export const Directory: React.FC<DirectoryProps> = ({ currentUser, users, onUser
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row gap-4 transition-colors">
+            <div className="bg-white dark:bg-gray-900 p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row gap-4 transition-colors">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                     <input 
@@ -157,7 +157,7 @@ export const Directory: React.FC<DirectoryProps> = ({ currentUser, users, onUser
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredUsers.map(user => (
                     <div 
                         key={user.id} 

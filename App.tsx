@@ -5,12 +5,13 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { Directory } from './components/Directory';
 import { MapPin, Calendar, Check, X, Clock, CheckCircle, ArrowLeft, Phone, User as UserIcon, Bell, BadgeCheck, Shield, Edit2, Video, MoreVertical, Trash2, Ban, AlertTriangle, LandPlot, RefreshCw, FileText, Download, Share2, ExternalLink, Globe, Sparkles } from 'lucide-react';
-import { Language, translations } from './services/translations';
+import { Language, translations, dynamicTransliterate } from './services/translations';
 import { STORAGE_LIMIT_GB } from './services/config';
 import { MOCK_USERS, MOCK_POSTS, MOCK_MEETINGS } from './services/mockData';
 import { audioService } from './services/audioService';
 import { enhanceNotice } from './services/geminiService';
 import { toJpeg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 import { QRCodeSVG } from 'qrcode.react';
 
 export const App: React.FC = () => {
@@ -35,6 +36,11 @@ export const App: React.FC = () => {
     const [approvalTarget, setApprovalTarget] = useState<User | null>(null);
     const [meetingFilter, setMeetingFilter] = useState<'All' | 'State Level' | 'District Level'>('All');
     
+    // Download Modal State
+    const [showDownloadModal, setShowDownloadModal] = useState(false);
+    const [downloadTargetNotice, setDownloadTargetNotice] = useState<Post | null>(null);
+    const [downloadFormat, setDownloadFormat] = useState<'jpg' | 'pdf'>('jpg');
+
     // Detailed Profile Admin Menu State
     const [showDetailAdminMenu, setShowDetailAdminMenu] = useState(false);
 
@@ -75,6 +81,11 @@ export const App: React.FC = () => {
         }
     }, [currentTab, hasStarted, currentUser, isMuted]);
 
+    const handleStartTour = () => {
+        setHasStarted(true);
+        audioService.play(currentTab, isMuted);
+    };
+
     // --- Lifecycle Logic: Theme Only (No Firebase Listeners) ---
     useEffect(() => {
         // Theme
@@ -97,7 +108,13 @@ export const App: React.FC = () => {
 
     const handleEnhanceNotice = async (content: string) => {
         try {
-            const enhanced = await enhanceNotice(content, currentLang);
+            // Apply dynamic transliteration first if Hindi
+            let textToEnhance = content;
+            if (currentLang === 'hi') {
+                textToEnhance = dynamicTransliterate(content, 'hi');
+            }
+
+            const enhanced = await enhanceNotice(textToEnhance, currentLang);
             return enhanced;
         } catch (error) {
             console.error("AI Enhancement failed", error);
@@ -106,16 +123,42 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleDownloadLetterhead = async (notice: Post) => {
-        if (!letterheadRef.current) return;
+    const handleDownloadLetterhead = (notice: Post) => {
+        setDownloadTargetNotice(notice);
+        setShowDownloadModal(true);
+    };
+
+    const handleProcessDownload = async () => {
+        if (!letterheadRef.current || !downloadTargetNotice) return;
+        
         try {
-            const dataUrl = await toJpeg(letterheadRef.current, { quality: 0.95 });
-            const link = document.createElement('a');
-            link.download = `LJP_Notice_${notice.id}.jpg`;
-            link.href = dataUrl;
-            link.click();
+            // Ensure the letterhead is rendered and visible (it's off-screen but rendered)
+            const canvas = await toJpeg(letterheadRef.current, { quality: 0.95, pixelRatio: 2 });
+            
+            if (downloadFormat === 'jpg') {
+                const link = document.createElement('a');
+                link.download = `LJP_Notice_${downloadTargetNotice.id}.jpg`;
+                link.href = canvas;
+                link.click();
+            } else {
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: [794, 1123] // A4 size in pixels at 96 DPI approx
+                });
+                
+                const imgProps = pdf.getImageProperties(canvas);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                pdf.addImage(canvas, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`LJP_Notice_${downloadTargetNotice.id}.pdf`);
+            }
+            setShowDownloadModal(false);
+            setDownloadTargetNotice(null);
         } catch (err) {
-            console.error('Letterhead generation failed', err);
+            console.error('Download failed', err);
+            alert("Download failed. Please try again.");
         }
     };
 
@@ -207,13 +250,18 @@ export const App: React.FC = () => {
             return;
         }
         
+        let finalContent = content;
+        if (currentLang === 'hi') {
+            finalContent = dynamicTransliterate(content, 'hi');
+        }
+        
         const newPost: Post = {
             id: `post_${Date.now()}`,
             userId: currentUser.id,
             userName: currentUser.name,
             userDesignation: currentUser.designation,
             userPhoto: currentUser.photoUrl,
-            content,
+            content: finalContent,
             imageUrl, 
             timestamp: Date.now(),
             likes: 0,
@@ -307,7 +355,18 @@ export const App: React.FC = () => {
         if(!currentUser) return;
         
         const meetingId = `meet${Date.now()}`;
-        const newMeet: Meeting = { id: meetingId, ...newMeeting, createdBy: currentUser.id };
+        
+        let title = newMeeting.title;
+        let venue = newMeeting.venue;
+        let agenda = newMeeting.agenda;
+
+        if (currentLang === 'hi') {
+            title = dynamicTransliterate(title, 'hi');
+            venue = dynamicTransliterate(venue, 'hi');
+            agenda = dynamicTransliterate(agenda, 'hi');
+        }
+
+        const newMeet: Meeting = { id: meetingId, ...newMeeting, title, venue, agenda, createdBy: currentUser.id };
         
         setMeetings(prev => [...prev, newMeet]);
         
@@ -315,7 +374,7 @@ export const App: React.FC = () => {
         if (newMeeting.meetingType === 'whatsapp') locationText = 'WhatsApp Video Call';
         if (newMeeting.meetingType === 'virtual') locationText = `Virtual Meeting: ${newMeeting.meetingLink}`;
 
-        const noticeContent = `NEW EVENT: ${newMeeting.title} on ${newMeeting.date} at ${newMeeting.time}. Location: ${locationText}. Target: ${newMeeting.targetDistrict}`;
+        const noticeContent = `NEW EVENT: ${title} on ${newMeeting.date} at ${newMeeting.time}. Location: ${locationText}. Target: ${newMeeting.targetDistrict}`;
         
         handleAddPost(noticeContent, undefined, true);
 
@@ -796,6 +855,9 @@ export const App: React.FC = () => {
             hasNotices={hasNotices}
             allNotices={allNotices}
             onNoticeClick={handleNoticeClick}
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
+            onStartTour={handleStartTour}
         >
             {renderContent()}
             
@@ -1059,6 +1121,53 @@ export const App: React.FC = () => {
                                 {t.submit}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+            {showDownloadModal && downloadTargetNotice && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDownloadModal(false)}></div>
+                    <div className="bg-white dark:bg-gray-800 w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl animate-fade-in">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">{t.chooseFormat}</h3>
+                            <button onClick={() => setShowDownloadModal(false)}><X size={20} className="text-gray-500" /></button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            <button 
+                                onClick={() => { setDownloadFormat('jpg'); handleProcessDownload(); }}
+                                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-ljp-secondary transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                                        <FileText size={20} />
+                                    </div>
+                                    <span className="font-bold text-gray-700 dark:text-gray-200">{t.downloadJPG}</span>
+                                </div>
+                                <div className={`w-4 h-4 rounded-full border-2 ${downloadFormat === 'jpg' ? 'border-ljp-secondary bg-ljp-secondary' : 'border-gray-300'}`}></div>
+                            </button>
+
+                            <button 
+                                onClick={() => { setDownloadFormat('pdf'); handleProcessDownload(); }}
+                                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-ljp-secondary transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+                                        <FileText size={20} />
+                                    </div>
+                                    <span className="font-bold text-gray-700 dark:text-gray-200">{t.downloadPDF}</span>
+                                </div>
+                                <div className={`w-4 h-4 rounded-full border-2 ${downloadFormat === 'pdf' ? 'border-ljp-secondary bg-ljp-secondary' : 'border-gray-300'}`}></div>
+                            </button>
+                        </div>
+
+                        <button 
+                            onClick={handleProcessDownload}
+                            className="w-full mt-6 bg-ljp-secondary text-white py-3 rounded-xl font-bold hover:brightness-110 shadow-lg shadow-blue-200 dark:shadow-none transition-all flex items-center justify-center gap-2"
+                        >
+                            <Download size={18} />
+                            Download
+                        </button>
                     </div>
                 </div>
             )}
