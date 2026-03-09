@@ -1,0 +1,8 @@
+{
+  "name": "LJP Digital Connect",
+  "description": "Digital Management System for LJP Party Bihar with AI capabilities.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
