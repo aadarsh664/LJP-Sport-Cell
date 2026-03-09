@@ -17,7 +17,7 @@ import { MOCK_USERS, MOCK_POSTS, MOCK_MEETINGS } from './services/mockData';
 import { enhanceNotice } from './services/geminiService';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 export const App: React.FC = () => {
     // Global State
@@ -128,7 +128,10 @@ export const App: React.FC = () => {
                 quality: 0.95,
                 pixelRatio: 2,
                 backgroundColor: '#ffffff',
-                style: { opacity: '1', transform: 'none' }
+                cacheBust: true,
+                skipFonts: true,
+                style: { opacity: '1', transform: 'none' },
+                fetchRequestInit: { credentials: 'omit' }
             });
 
             if (downloadFormat === 'jpg') {
@@ -165,8 +168,10 @@ export const App: React.FC = () => {
                 quality: 0.95,
                 pixelRatio: 2,
                 backgroundColor: '#ffffff',
-                fetchRequestInit: { credentials: 'omit' },
-                style: { opacity: '1', transform: 'none' }
+                cacheBust: true,
+                skipFonts: true,
+                style: { opacity: '1', transform: 'none' },
+                fetchRequestInit: { credentials: 'omit' }
             });
             const link = document.createElement('a');
             link.download = `LJP_ID_Card_${currentUser?.name}.jpg`;
@@ -1234,7 +1239,7 @@ export const App: React.FC = () => {
                 </div>
             )}
             {/* --- Hidden Letterhead for Generation --- */}
-            <div className="absolute top-[-9999px] left-[-9999px] pointer-events-none overflow-hidden flex flex-col items-center justify-center">
+            <div className="fixed top-0 left-0 -z-[9999] opacity-0 pointer-events-none overflow-hidden">
                 <div
                     ref={letterheadRef}
                     className="w-[800px] bg-white p-12 font-serif relative"
@@ -1268,7 +1273,7 @@ export const App: React.FC = () => {
                     <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
                         <div className="w-48">
                             <div className="p-2 border border-gray-100 rounded-lg inline-block">
-                                <QRCodeSVG value={`LJP-NOTICE-${downloadTargetNotice?.id}`} size={80} />
+                                <QRCodeCanvas value={`LJP-NOTICE-${downloadTargetNotice?.id}`} size={80} />
                             </div>
                             <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase">Scan to verify authenticity</p>
                         </div>
@@ -1288,14 +1293,13 @@ export const App: React.FC = () => {
             </div>
 
             {/* --- Hidden ID Card for Generation --- */}
-            <div className="absolute top-[-9999px] left-[-9999px] pointer-events-none overflow-hidden flex flex-col items-center justify-center">
+            <div className="fixed top-0 left-0 -z-[9999] opacity-0 pointer-events-none overflow-hidden">
                 <div
                     ref={idCardRef}
                     className="w-[400px] h-[600px] bg-white relative overflow-hidden font-sans"
                     style={{ backgroundImage: 'linear-gradient(135deg, #003366 0%, #000000 100%)' }}
                 >
                     {/* Background Pattern */}
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
 
                     {/* Header */}
                     <div className="p-6 text-center border-b border-white/20">
@@ -1342,7 +1346,7 @@ export const App: React.FC = () => {
                     {/* QR Code */}
                     <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center">
                         <div className="p-2 bg-white rounded-lg shadow-xl">
-                            <QRCodeSVG value={`LJP-SPORTS-${currentUser.id}`} size={60} />
+                            <QRCodeCanvas value={`LJP-SPORTS-${currentUser.id}`} size={60} />
                         </div>
                         <p className="text-white/30 text-[8px] mt-2 font-bold tracking-widest uppercase underline decoration-ljp-secondary">Verify at ljpbihar.org</p>
                     </div>
